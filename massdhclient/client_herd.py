@@ -10,6 +10,7 @@ class ClientHerd:
         self.clients = {}
         mac = EUI(base_mac, dialect=mac_unix_expanded)
         self.avg = None
+        self.retries = 0
 
         for x in range(size):
             c = DHCPClient(iface, str(mac), f"{hostname_prefix}{x:06}")
@@ -28,7 +29,9 @@ class ClientHerd:
             res = fut.result()
             if isinstance(res, Exception):
                 self.clients[mac].log.warning(f"Retrying discover immediately: {str(res)}")
+                time.sleep(interval)
                 queue.append((mac, pool.submit(self.clients[mac].discover)))
+                self.retries += 1
             else:
                 self.capture_stats(res)
         pool.shutdown()
@@ -46,6 +49,7 @@ class ClientHerd:
             if isinstance(res, Exception):
                 self.clients[mac].log.warning(f"Retrying renew immediately: {str(res)}")
                 queue.append((mac, pool.submit(self.clients[mac].renew)))
+                self.retries += 1
             else:
                 self.capture_stats(res)
         pool.shutdown()

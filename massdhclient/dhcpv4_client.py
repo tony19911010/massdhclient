@@ -9,6 +9,7 @@ import logging
 
 conf.checkIPaddr = False
 conf.verb = False
+timeout = 15
 
 
 class DHCPClient:
@@ -53,7 +54,7 @@ class DHCPClient:
                 sport='bootpc', dport='bootps') / BOOTP(op='BOOTREQUEST', xid=x_id, chaddr=self.mac_str) / DHCP(
                 options=disc_opts)
             t1 = time.time()
-            resp = srp1(pkt, iface=self.iface, timeout=2.5, multi=True)
+            resp = srp1(pkt, iface=self.iface, timeout=timeout, multi=False)
             self.ip = resp[1][BOOTP].yiaddr
             self.server_ip = resp[1][BOOTP].siaddr
             self.log.debug(f"Received offer for {self.ip} from {self.server_ip} in {time.time()-t1} seconds")
@@ -61,7 +62,7 @@ class DHCPClient:
             req = Ether(dst="ff:ff:ff:ff:ff:ff", src=self.mac) / IP(src="0.0.0.0", dst="255.255.255.255") / UDP(
                 sport=68, dport=67)/BOOTP(op="BOOTREQUEST", xid=x_id, chaddr=self.mac_str) / DHCP(options=self.req_options)
             t15 = time.time()
-            resp = srp1(req, iface=self.iface, timeout=2.5, verbose=0)
+            resp = srp1(req, iface=self.iface, timeout=timeout, verbose=0)
             t2 = time.time()
             self.log.debug(f"Received ACK for {self.ip} from {self.server_ip} in {t2-t15} seconds")
             self._parse_renewal_time(resp, t2)
@@ -72,12 +73,10 @@ class DHCPClient:
 
     def _parse_renewal_time(self, resp, t2):
         for tp in resp[1][DHCP].options:
-            if not isinstance(tp, tuple):
+            if not isinstance(tp, tuple) or tp[0] != 'renewal_time':
                 continue
-            opt, value = tp
-            if opt == 'renewal_time':
-                self.renew_time = t2 + int(value)
-                break
+            self.renew_time = t2 + int(tp[1])
+            break
         else:
             raise ValueError(f"Unable to find renewal time in response: {resp[1][DHCP].options}")
 
@@ -88,7 +87,7 @@ class DHCPClient:
                 op="BOOTREQUEST", xid=x_id, chaddr=self.mac_str) / DHCP(options=self.req_options)
             t1 = time.time()
             self.log.debug(f"Doing renew at {t1} - renew time: {self.renew_time}")
-            resp = sr1(req, iface=self.iface, timeout=2.5, verbose=0)
+            resp = sr1(req, iface=self.iface, timeout=timeout, verbose=0)
             t2 = time.time()
             self._parse_renewal_time(resp, t2)
             self.log.debug(f"Renew succeeded in {t2-t1} - next renew time: {self.renew_time}")
