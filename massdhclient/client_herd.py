@@ -60,3 +60,8 @@ class ClientHerd:
             self.avg = value
         else:
             self.avg = self.avg * 0.97 + 0.03*value
+
+    def capture_ip_list(self):
+        with open('/tmp/dhcp_ip_list.txt', 'w') as f:
+            for _, c in self.clients.items():
+                f.write(f"{c.ip}-{c.mac}\n")

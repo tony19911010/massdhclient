@@ -42,6 +42,7 @@ if __name__ == '__main__':
     import massdhclient
     herd = massdhclient.ClientHerd(args.interface, args.clients, args.base_mac, args.host_prefix)
     herd.start(args.interval)
+    herd.capture_ip_list()
     log.info(f"All clients have now acquired addresses - avg time is {herd.avg} s/Lease with {herd.retries} retries")
     log.info("Proceeding to renew addresses as needed - CTRL-C to exit")
     while True:

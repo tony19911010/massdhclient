@@ -65,6 +65,8 @@ class DHCPClient:
             resp = srp1(req, iface=self.iface, timeout=timeout, verbose=0)
             t2 = time.time()
             self.log.debug(f"Received ACK for {self.ip} from {self.server_ip} in {t2-t15} seconds")
+            time.sleep(0.2)
+            self.arp()
             self._parse_renewal_time(resp, t2)
             return t2-t1
         except Exception as e:
@@ -73,9 +75,9 @@ class DHCPClient:
 
     def _parse_renewal_time(self, resp, t2):
         for tp in resp[1][DHCP].options:
-            if not isinstance(tp, tuple) or tp[0] != 'renewal_time':
+            if not isinstance(tp, tuple) or tp[0] != 'lease_time':
                 continue
-            self.renew_time = t2 + int(tp[1])
+            self.renew_time = t2 + int(tp[1])/2
             break
         else:
             raise ValueError(f"Unable to find renewal time in response: {resp[1][DHCP].options}")
@@ -96,3 +98,6 @@ class DHCPClient:
             self.log.debug(f"Renew failed: {str(e)}")
             return e
 
+    def arp(self):
+        arp = Ether(dst="ff:ff:ff:ff:ff:ff", src="3c:fd:fe:b4:9d:18")/ARP(psrc=self.ip, pdst="192.168.60.100", hwsrc="3c:fd:fe:b4:9d:18")
+        resp = srp1(arp, iface=self.iface, timeout=timeout, verbose=0)
